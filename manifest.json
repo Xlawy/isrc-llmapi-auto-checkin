@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "ISRC 每日签到",
+  "version": "1.0.0",
+  "description": "浏览器启动后后台签到，成功或失败均通知；不自动打开网页。",
+  "minimum_chrome_version": "120",
+  "permissions": ["alarms", "storage", "notifications"],
+  "host_permissions": ["https://llmapi.isrc.ac.cn/*"],
+  "background": {"service_worker": "worker.js", "type": "module"},
+  "action": {"default_popup": "popup.html", "default_title": "ISRC 每日签到"},
+  "icons": {"128": "icon.png"}
+}
