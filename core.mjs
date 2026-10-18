@@ -50,3 +50,29 @@ export async function checkIn(fetcher = fetch, now = Date.now()) {
   if (!submitted || typeof submitted !== 'object') throw new CheckError('签到响应缺少结果，请手动检查网站。');
   return result(submitted, false);
 }
+
+// quota is the remaining account balance, not lifetime earned or used quota.
+export function formatBalance(quota, config) {
+  const raw = `${quota.toLocaleString('zh-CN')}（原始额度单位）`;
+  if (!config) return raw;
+  if (config.quota_display_type === 'TOKENS') return `${quota.toLocaleString('zh-CN')} Tokens`;
+  if (!(Number.isFinite(config.quota_per_unit) && config.quota_per_unit > 0)) return raw;
+  const type = config.quota_display_type;
+  const rate = type === 'USD' ? 1 : type === 'CNY' ? config.usd_exchange_rate :
+    type === 'CUSTOM' ? config.custom_currency_exchange_rate : null;
+  if (!(Number.isFinite(rate) && rate > 0)) return raw;
+  const amount = quota / config.quota_per_unit * rate;
+  if (!Number.isFinite(amount)) return raw;
+  const value = amount.toLocaleString('zh-CN', {maximumFractionDigits: 4});
+  if (type === 'CUSTOM') return config.custom_currency_symbol ? `${config.custom_currency_symbol} ${value}` : raw;
+  return `${type === 'CNY' ? '¥' : '$'}${value} ${type}`;
+}
+export async function getBalance(fetcher = fetch) {
+  const auth = await request('/api/user/auth/refresh', {method: 'POST', fetcher});
+  if (!auth?.access_token || !Number.isInteger(auth?.user?.id)) throw new CheckError('登录接口格式发生变化，无法获取余额。');
+  const user = await request('/api/user/self', {token: auth.access_token, fetcher});
+  if (!Number.isFinite(user?.quota) || user.id !== auth.user.id) throw new CheckError('余额接口格式或账号信息异常，无法显示余额。');
+  let config;
+  try { config = await request('/api/status', {fetcher}); } catch { /* Keep raw units if currency configuration is unavailable. */ }
+  return {userId: user.id, quota: user.quota, text: formatBalance(user.quota, config), updatedAt: Date.now()};
+}

@@ -1,6 +1,7 @@
-import {checkIn, dayKey} from './core.mjs';
+import {checkIn, dayKey, getBalance} from './core.mjs';
 const RETRIES = [60000, 300000, 1800000];
 let running;
+let balanceRunning;
 async function settings() { return (await chrome.storage.local.get('state')).state || {enabled: true}; }
 async function save(patch) {
   const state = {...await settings(), ...patch};
@@ -45,8 +46,22 @@ async function perform(manual = false) {
 }
 export function run(manual = false) {
   if (running) return running;
-  running = perform(manual).finally(() => { running = null; });
+  running = Promise.resolve(balanceRunning).then(() => perform(manual)).finally(() => { running = null; });
   return running;
+}
+export function refreshBalance() {
+  if (running) return running.then(() => refreshBalance());
+  if (balanceRunning) return balanceRunning;
+  balanceRunning = (async () => {
+    try {
+      const value = await getBalance();
+      await chrome.storage.local.set({balance: value});
+    } catch (error) {
+      // Do not show an old account's balance after a failed refresh.
+      await chrome.storage.local.set({balance: {error: error.message || '余额读取失败', checkedAt: Date.now()}});
+    }
+  })().finally(() => { balanceRunning = null; });
+  return balanceRunning;
 }
 async function ensureAlarm() {
   if (!await chrome.alarms.get('isrc-daily')) await chrome.alarms.create('isrc-daily', {periodInMinutes: 1});
@@ -56,6 +71,7 @@ chrome.runtime.onInstalled.addListener(() => { void ensureAlarm().then(() => run
 chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === 'isrc-daily') void run(); });
 chrome.runtime.onMessage.addListener((message, sender, reply) => {
   if (sender.id !== chrome.runtime.id) return;
+  if (message.type === 'balance') { refreshBalance().then(() => reply({ok: true}), () => reply({ok: false})); return true; }
   if (message.type === 'check') { run(true).then(() => reply({ok: true}), () => reply({ok: false})); return true; }
   if (message.type === 'enabled') {
     save({enabled: !!message.value}).then(async () => { if (message.value) await run(); reply({ok: true}); });

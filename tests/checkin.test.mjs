@@ -69,3 +69,28 @@ test('worker deduplicates, records success despite notification failure, and lim
  const before=state.lastAttempt;await run();assert.equal(state.lastAttempt,before);
  state={enabled:false};await run();assert.equal(state.lastAttempt,undefined);
 });
+
+test('balance formats configured units and preserves zero', async () => {
+ const {formatBalance} = await import('../core.mjs');
+ assert.equal(formatBalance(1250000,{quota_per_unit:500000,quota_display_type:'USD'}),'$2.5 USD');
+ assert.equal(formatBalance(0,{quota_per_unit:500000,quota_display_type:'USD'}),'$0 USD');
+ assert.equal(formatBalance(500000,{quota_per_unit:500000,quota_display_type:'CNY',usd_exchange_rate:7.3}),'¥7.3 CNY');
+ assert.match(formatBalance(50,{}),/原始额度单位/);
+ assert.equal(formatBalance(50,{quota_display_type:'TOKENS'}),'50 Tokens');
+});
+test('balance uses remaining quota and never submits checkin', async () => {
+ const {getBalance}=await import('../core.mjs');
+ const s=sequence([ok(auth),ok({id:1,quota:2500000,used_quota:9000000}),ok({quota_per_unit:500000,quota_display_type:'USD'})]);
+ const result=await getBalance(s.fetcher);
+ assert.equal(result.text,'$5 USD');
+ assert.equal(result.userId,1);
+ assert.ok(s.calls[1].url.endsWith('/api/user/self'));
+ assert.equal(s.calls.filter(c=>c.url.includes('/checkin')).length,0);
+});
+test('balance rejects account mismatch and falls back when unit config fails', async () => {
+ const {getBalance}=await import('../core.mjs');
+ const wrong=sequence([ok(auth),ok({id:2,quota:100})]);
+ await assert.rejects(getBalance(wrong.fetcher),/账号信息异常/);
+ const fallback=sequence([ok(auth),ok({id:1,quota:100}),{status:503}]);
+ assert.match((await getBalance(fallback.fetcher)).text,/原始额度单位/);
+});

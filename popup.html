@@ -1,7 +1,8 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>ISRC 每日签到</title>
 <style>body{width:330px;margin:20px;font:14px/1.7 system-ui;color:#202c3c}h1{font-size:20px;margin:0 0 12px}button{padding:9px 12px;border:0;border-radius:7px;cursor:pointer;background:#1668cc;color:white;margin:8px 5px 0 0}button:disabled{opacity:.5}#open{background:#e8edf5;color:#202c3c}p{white-space:pre-wrap;overflow-wrap:anywhere}.muted{color:#677386;font-size:12px}</style>
 <h1>ISRC 每日签到</h1><label><input id="enabled" type="checkbox"> 每天自动签到</label>
+<section style="margin-top:16px;padding:12px;background:#f0f5fc;border-radius:8px"><span>当前总余额</span><div id="balance" style="font-size:24px;font-weight:650">正在读取…</div><div id="balance-time" class="muted"></div><button id="refresh">刷新余额</button></section>
 <p id="status">正在读取状态…</p><p id="time" class="muted"></p><p id="warning" class="muted"></p>
 <button id="check">立即检查</button><button id="open">打开网站 / 登录</button>
-<p class="muted">按北京时间每天签到。浏览器启动或跨日后后台执行，成功后当天不再请求。网站要求安全验证时需手动处理。</p>
+<p class="muted">按北京时间每天签到。浏览器启动或跨日后后台执行，签到成功后当天不再自动签到；打开此弹窗会查询最新余额。网站要求安全验证时需手动处理。</p>
 <script src="popup.js"></script></html>
